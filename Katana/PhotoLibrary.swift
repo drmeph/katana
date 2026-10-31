@@ -63,7 +63,7 @@ final class PhotoLibrary: ObservableObject {
         reloadArchive()
     }
 
-    func reloadQueue() {
+    func reloadQueue(keepingHistory: Bool = false) {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         switch filter {
@@ -92,6 +92,7 @@ final class PhotoLibrary: ObservableObject {
             }
         }
         queue = items
+        guard !keepingHistory else { return }
         history.removeAll()
         canUndo = false
     }
@@ -120,7 +121,10 @@ final class PhotoLibrary: ObservableObject {
 
     func decide(_ decision: Decision, on asset: PHAsset) {
         let id = asset.localIdentifier
-        queue.removeAll { $0.localIdentifier == id }
+        // A button tap can land while a swiped card is still flying out;
+        // only the first decision for a card counts.
+        guard let index = queue.firstIndex(where: { $0.localIdentifier == id }) else { return }
+        queue.remove(at: index)
         switch decision {
         case .keep:
             store.keep(id)
@@ -132,7 +136,8 @@ final class PhotoLibrary: ObservableObject {
         if history.count > 100 { history.removeFirst() }
         canUndo = true
 
-        if queue.isEmpty { reloadQueue() }
+        // Load the next batch, but keep history so the last swipe can be undone.
+        if queue.isEmpty { reloadQueue(keepingHistory: true) }
     }
 
     func undo() {
@@ -190,7 +195,12 @@ final class PhotoLibrary: ObservableObject {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.deleteAssets(assets as NSArray)
             }
-            store.removeFromArchive(assets.map(\.localIdentifier))
+            let ids = assets.map(\.localIdentifier)
+            store.removeFromArchive(ids)
+            // Undo must not bring back photos that no longer exist.
+            let deleted = Set(ids)
+            history.removeAll { deleted.contains($0.asset.localIdentifier) }
+            canUndo = !history.isEmpty
             store.freedBytes += bytes
             store.deletedCount += assets.count
             freedBytes = store.freedBytes

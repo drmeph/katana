@@ -85,6 +85,7 @@ struct SwipeView: View {
                     withAnimation(.spring) { library.decide(.archive, on: top) }
                 }
             }
+            .disabled(library.queue.isEmpty)
             .accessibilityLabel("Archive")
 
             RoundButton(systemImage: "arrow.uturn.backward", color: .secondary, size: 48) {
@@ -99,9 +100,9 @@ struct SwipeView: View {
                     withAnimation(.spring) { library.decide(.keep, on: top) }
                 }
             }
+            .disabled(library.queue.isEmpty)
             .accessibilityLabel("Keep")
         }
-        .disabled(library.queue.isEmpty)
     }
 }
 
