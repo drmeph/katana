@@ -52,6 +52,7 @@ struct SwipeView: View {
                             .labelStyle(.titleAndIcon)
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(.green)
+                            .fixedSize()
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
